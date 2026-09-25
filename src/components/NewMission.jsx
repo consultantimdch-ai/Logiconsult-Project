@@ -79,6 +79,18 @@ export default function NewMission({ onCancel, onCreated }) {
         finalClientId = newClient.id
       }
 
+      // Recherche automatique de la mission précédente pour ce client (pour comparaison de scores)
+      const { data: missionsPrecedentes } = await supabase
+        .from('missions')
+        .select('id, date_mission')
+        .eq('client_id', finalClientId)
+        .order('date_mission', { ascending: false })
+        .limit(1)
+
+      const missionPrecedenteId = missionsPrecedentes && missionsPrecedentes.length > 0
+        ? missionsPrecedentes[0].id
+        : null
+
       const { data: mission, error: missionError } = await supabase
         .from('missions')
         .insert({
@@ -86,6 +98,7 @@ export default function NewMission({ onCancel, onCreated }) {
           date_mission: dateMission,
           domaines: domainesChoisis,
           statut: 'en_cours',
+          mission_precedente_id: missionPrecedenteId,
         })
         .select()
         .single()
