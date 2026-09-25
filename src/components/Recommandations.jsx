@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { RECOMMANDATIONS_PAR_NUMERO, recommandationParDefaut } from '../lib/recommandationsTemplates'
 
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
@@ -34,7 +35,7 @@ export default function Recommandations({ missionId }) {
     const [{ data: recosData }, { data: scoresData }, { data: criteresData }] = await Promise.all([
       supabase.from('recommandations').select('*, criteres_audit(libelle)').eq('mission_id', missionId).order('date_maj', { ascending: false }),
       supabase.from('audit_scores').select('critere_id, score').eq('mission_id', missionId),
-      supabase.from('criteres_audit').select('id, libelle'),
+      supabase.from('criteres_audit').select('id, numero, libelle'),
     ])
     setRecos(recosData || [])
     setScores(scoresData || [])
@@ -45,7 +46,7 @@ export default function Recommandations({ missionId }) {
   async function genererDepuisPointsCritiques() {
     setBusy(true)
     setMsg('')
-    const critereMap = Object.fromEntries(criteres.map((c) => [c.id, c.libelle]))
+    const critereMap = Object.fromEntries(criteres.map((c) => [c.id, c]))
     const dejaCouverts = new Set(recos.filter((r) => r.critere_id).map((r) => r.critere_id))
     const pointsCritiques = scores.filter((s) => s.score <= 2 && !dejaCouverts.has(s.critere_id))
 
@@ -55,12 +56,18 @@ export default function Recommandations({ missionId }) {
       return
     }
 
-    const nouvelles = pointsCritiques.map((s) => ({
-      mission_id: missionId,
-      critere_id: s.critere_id,
-      texte: `À traiter : ${critereMap[s.critere_id] || 'critère'} (noté ${s.score}/5)`,
-      statut: 'non_entamee',
-    }))
+    const nouvelles = pointsCritiques.map((s) => {
+      const critere = critereMap[s.critere_id]
+      const texte = critere
+        ? (RECOMMANDATIONS_PAR_NUMERO[critere.numero] || recommandationParDefaut(critere.libelle))
+        : 'Point à traiter.'
+      return {
+        mission_id: missionId,
+        critere_id: s.critere_id,
+        texte,
+        statut: 'non_entamee',
+      }
+    })
 
     const { error } = await supabase.from('recommandations').insert(nouvelles)
     setBusy(false)
