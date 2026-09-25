@@ -10,6 +10,7 @@ import DonneesProjet from './DonneesProjet'
 import Recommandations from './Recommandations'
 import ComparaisonMission from './ComparaisonMission'
 import PropositionCommerciale from './PropositionCommerciale'
+import Documents from './Documents'
 
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
@@ -189,6 +190,7 @@ export default function MissionDetail({ missionId, onBack }) {
           { key: 'resultats', label: 'Résultats' },
           { key: 'recommandations', label: 'Recommandations' },
           { key: 'proposition', label: 'Proposition' },
+          { key: 'documents', label: 'Documents' },
         ].map((t) => (
           <button
             key={t.key}
@@ -204,6 +206,12 @@ export default function MissionDetail({ missionId, onBack }) {
           </button>
         ))}
       </div>
+
+      {activeTab === 'documents' && (
+        <div>
+          <Documents mission={mission} />
+        </div>
+      )}
 
       {activeTab === 'proposition' && (
         <div>
