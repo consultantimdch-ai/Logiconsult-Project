@@ -5,6 +5,9 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import FichesComplementaires from './FichesComplementaires'
+import DonneesProjet from './DonneesProjet'
+import Recommandations from './Recommandations'
 
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
@@ -179,8 +182,10 @@ export default function MissionDetail({ missionId, onBack }) {
       {/* Onglets principaux */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
         {[
+          { key: 'donnees', label: 'Données' },
           { key: 'grille', label: 'Grille d\u2019audit' },
           { key: 'resultats', label: 'Résultats' },
+          { key: 'recommandations', label: 'Recommandations' },
         ].map((t) => (
           <button
             key={t.key}
@@ -196,6 +201,26 @@ export default function MissionDetail({ missionId, onBack }) {
           </button>
         ))}
       </div>
+
+      {activeTab === 'recommandations' && (
+        <div>
+          <Recommandations missionId={missionId} />
+        </div>
+      )}
+
+      {activeTab === 'donnees' && (
+        <div>
+          <FichesComplementaires missionId={missionId} domaines={mission.domaines} />
+          {mission.domaines.includes('projet') && (
+            <>
+              <h2 style={{ color: NAVY, fontSize: 16, marginTop: 24, marginBottom: 12 }}>
+                Indicateurs, jalons et budget
+              </h2>
+              <DonneesProjet missionId={missionId} />
+            </>
+          )}
+        </div>
+      )}
 
       {activeTab === 'grille' && (
         <>
