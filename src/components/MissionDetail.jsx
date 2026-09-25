@@ -1,7 +1,7 @@
 // src/components/MissionDetail.jsx
 //
-// Écran de mission : grille d'audit interactive (notation des critères par domaine),
-// avec synthèse des scores en temps réel. À coller dans ton projet.
+// Écran de mission : grille d'audit interactive + onglet Résultats (radar + synthèse).
+// À coller dans ton projet (remplace tout le fichier existant).
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabaseClient'
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
 const LIGHTGOLD = '#F3ECDD'
+const RED = '#C0392B'
 
 const DOMAINE_LABELS = {
   projet: 'Gestion de projet',
@@ -30,6 +31,7 @@ export default function MissionDetail({ missionId, onBack }) {
   const [criteres, setCriteres] = useState([])
   const [scores, setScores] = useState({}) // { critere_id: { score, commentaire } }
   const [activeDomaine, setActiveDomaine] = useState(null)
+  const [activeTab, setActiveTab] = useState('grille') // 'grille' | 'resultats'
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
@@ -115,24 +117,37 @@ export default function MissionDetail({ missionId, onBack }) {
   }
 
   if (loading) return <div style={{ padding: 24 }}>Chargement…</div>
-  if (error) return <div style={{ padding: 24, color: '#c0392b' }}>Erreur : {error}</div>
+  if (error) return <div style={{ padding: 24, color: RED }}>Erreur : {error}</div>
   if (!mission) return null
 
   const criteresDuDomaine = criteres.filter((c) => c.domaine === activeDomaine)
-
-  // Regroupement par axe pour affichage
   const axes = [...new Set(criteresDuDomaine.map((c) => c.axe))]
 
-  // Synthèse : moyenne par domaine (sur les critères notés)
   function moyenneDomaine(domaine) {
     const critsDom = criteres.filter((c) => c.domaine === domaine)
     const notes = critsDom
       .map((c) => scores[c.id]?.score)
       .filter((s) => s !== '' && s !== undefined && s !== null)
     if (notes.length === 0) return null
-    const avg = notes.reduce((a, b) => a + Number(b), 0) / notes.length
-    return avg.toFixed(1)
+    return notes.reduce((a, b) => a + Number(b), 0) / notes.length
   }
+
+  function moyennesAxes(domaine) {
+    const critsDom = criteres.filter((c) => c.domaine === domaine)
+    const axesDom = [...new Set(critsDom.map((c) => c.axe))]
+    return axesDom.map((axe) => {
+      const notes = critsDom
+        .filter((c) => c.axe === axe)
+        .map((c) => scores[c.id]?.score)
+        .filter((s) => s !== '' && s !== undefined && s !== null)
+      const avg = notes.length ? notes.reduce((a, b) => a + Number(b), 0) / notes.length : 0
+      return { label: axe.replace(/^\d\.\d\s/, ''), value: avg }
+    })
+  }
+
+  const pointsCritiques = criteres
+    .map((c) => ({ ...c, ...scores[c.id] }))
+    .filter((c) => c.score !== '' && c.score !== undefined && Number(c.score) <= 2)
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px', fontFamily: 'Arial, sans-serif' }}>
@@ -147,7 +162,6 @@ export default function MissionDetail({ missionId, onBack }) {
         Mission du {new Date(mission.date_mission).toLocaleDateString('fr-FR')}
       </p>
 
-      {/* Synthèse rapide par domaine */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         {mission.domaines.map((d) => {
           const moy = moyenneDomaine(d)
@@ -155,79 +169,176 @@ export default function MissionDetail({ missionId, onBack }) {
             <div key={d} style={{ backgroundColor: LIGHTGOLD, padding: '10px 16px', borderRadius: 8, fontSize: 13 }}>
               <strong style={{ color: NAVY }}>{DOMAINE_LABELS[d]}</strong>
               <div style={{ color: GOLD, fontWeight: 'bold', fontSize: 18 }}>
-                {moy ? `${moy} / 5` : '—'}
+                {moy !== null ? `${moy.toFixed(1)} / 5` : '—'}
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Onglets domaines */}
-      <div style={{ display: 'flex', borderBottom: `2px solid ${NAVY}`, marginBottom: 16 }}>
-        {mission.domaines.map((d) => (
+      {/* Onglets principaux */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+        {[
+          { key: 'grille', label: 'Grille d\u2019audit' },
+          { key: 'resultats', label: 'Résultats' },
+        ].map((t) => (
           <button
-            key={d}
-            onClick={() => setActiveDomaine(d)}
+            key={t.key}
+            onClick={() => setActiveTab(t.key)}
             style={{
-              padding: '10px 18px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 'bold',
-              backgroundColor: activeDomaine === d ? NAVY : 'transparent',
-              color: activeDomaine === d ? '#fff' : NAVY,
-              borderRadius: '6px 6px 0 0',
+              padding: '8px 16px', border: `1px solid ${NAVY}`, cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
+              backgroundColor: activeTab === t.key ? NAVY : '#fff',
+              color: activeTab === t.key ? '#fff' : NAVY,
+              borderRadius: 6,
             }}
           >
-            {DOMAINE_LABELS[d]}
+            {t.label}
           </button>
         ))}
       </div>
 
-      {/* Grille de critères */}
-      {axes.map((axe) => (
-        <div key={axe} style={{ marginBottom: 20 }}>
-          <h3 style={{ color: GOLD, fontSize: 14, marginBottom: 8 }}>{axe}</h3>
-          {criteresDuDomaine
-            .filter((c) => c.axe === axe)
-            .map((c) => (
-              <div
-                key={c.id}
+      {activeTab === 'grille' && (
+        <>
+          <div style={{ display: 'flex', borderBottom: `2px solid ${NAVY}`, marginBottom: 16 }}>
+            {mission.domaines.map((d) => (
+              <button
+                key={d}
+                onClick={() => setActiveDomaine(d)}
                 style={{
-                  display: 'flex', gap: 12, alignItems: 'flex-start',
-                  padding: '10px 0', borderBottom: '1px solid #eee',
+                  padding: '10px 18px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 'bold',
+                  backgroundColor: activeDomaine === d ? NAVY : 'transparent',
+                  color: activeDomaine === d ? '#fff' : NAVY,
+                  borderRadius: '6px 6px 0 0',
                 }}
               >
-                <div style={{ flex: 1, fontSize: 13 }}>{c.libelle}</div>
-                <select
-                  value={scores[c.id]?.score ?? ''}
-                  onChange={(e) => updateScore(c.id, 'score', e.target.value)}
-                  style={{ width: 170, padding: 6, fontSize: 12, borderRadius: 6, border: '1px solid #ccc' }}
-                >
-                  {NIVEAUX.map((n) => (
-                    <option key={n.value} value={n.value}>{n.label}</option>
-                  ))}
-                </select>
-                <input
-                  placeholder="Commentaire (optionnel)"
-                  value={scores[c.id]?.commentaire ?? ''}
-                  onChange={(e) => updateScore(c.id, 'commentaire', e.target.value)}
-                  style={{ width: 220, padding: 6, fontSize: 12, borderRadius: 6, border: '1px solid #ccc' }}
-                />
+                {DOMAINE_LABELS[d]}
+              </button>
+            ))}
+          </div>
+
+          {axes.map((axe) => (
+            <div key={axe} style={{ marginBottom: 20 }}>
+              <h3 style={{ color: GOLD, fontSize: 14, marginBottom: 8 }}>{axe}</h3>
+              {criteresDuDomaine
+                .filter((c) => c.axe === axe)
+                .map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      display: 'flex', gap: 12, alignItems: 'flex-start',
+                      padding: '10px 0', borderBottom: '1px solid #eee',
+                    }}
+                  >
+                    <div style={{ flex: 1, fontSize: 13 }}>{c.libelle}</div>
+                    <select
+                      value={scores[c.id]?.score ?? ''}
+                      onChange={(e) => updateScore(c.id, 'score', e.target.value)}
+                      style={{ width: 170, padding: 6, fontSize: 12, borderRadius: 6, border: '1px solid #ccc' }}
+                    >
+                      {NIVEAUX.map((n) => (
+                        <option key={n.value} value={n.value}>{n.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      placeholder="Commentaire (optionnel)"
+                      value={scores[c.id]?.commentaire ?? ''}
+                      onChange={(e) => updateScore(c.id, 'commentaire', e.target.value)}
+                      style={{ width: 220, padding: 6, fontSize: 12, borderRadius: 6, border: '1px solid #ccc' }}
+                    />
+                  </div>
+                ))}
+            </div>
+          ))}
+
+          <div style={{ position: 'sticky', bottom: 0, backgroundColor: '#fff', padding: '12px 0', borderTop: '1px solid #ddd' }}>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                backgroundColor: NAVY, color: '#fff', border: 'none', padding: '10px 20px',
+                borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontSize: 14,
+              }}
+            >
+              {saving ? 'Enregistrement…' : 'Enregistrer la grille'}
+            </button>
+            {saveMsg && <span style={{ marginLeft: 12, color: '#2E7D32', fontSize: 13 }}>{saveMsg}</span>}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'resultats' && (
+        <div>
+          <h2 style={{ color: NAVY, fontSize: 16, marginBottom: 16 }}>Synthèse par domaine</h2>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
+            {mission.domaines.map((d) => (
+              <div key={d}>
+                <p style={{ textAlign: 'center', fontWeight: 'bold', color: NAVY, fontSize: 13, marginBottom: 6 }}>
+                  {DOMAINE_LABELS[d]}
+                </p>
+                <RadarChart data={moyennesAxes(d)} />
               </div>
             ))}
-        </div>
-      ))}
+          </div>
 
-      <div style={{ position: 'sticky', bottom: 0, backgroundColor: '#fff', padding: '12px 0', borderTop: '1px solid #ddd' }}>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            backgroundColor: NAVY, color: '#fff', border: 'none', padding: '10px 20px',
-            borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontSize: 14,
-          }}
-        >
-          {saving ? 'Enregistrement…' : 'Enregistrer la grille'}
-        </button>
-        {saveMsg && <span style={{ marginLeft: 12, color: '#2E7D32', fontSize: 13 }}>{saveMsg}</span>}
-      </div>
+          <h2 style={{ color: NAVY, fontSize: 16, marginBottom: 12 }}>
+            Points critiques (notés ≤ 2/5) — {pointsCritiques.length}
+          </h2>
+          {pointsCritiques.length === 0 && (
+            <p style={{ color: '#666', fontSize: 13 }}>Aucun critère critique identifié pour le moment.</p>
+          )}
+          {pointsCritiques.map((c) => (
+            <div key={c.id} style={{ padding: '8px 12px', backgroundColor: '#FBEAE9', borderRadius: 6, marginBottom: 8 }}>
+              <div style={{ fontSize: 13 }}>
+                <strong style={{ color: RED }}>{c.score}/5</strong> — {c.libelle}
+              </div>
+              {c.commentaire && (
+                <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{c.commentaire}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
+  )
+}
+
+// ---- Petit composant radar en SVG pur (aucune librairie externe) ----
+function RadarChart({ data, size = 220 }) {
+  const n = data.length
+  if (n === 0) return <p style={{ fontSize: 12, color: '#666' }}>Pas de données.</p>
+
+  const center = size / 2
+  const maxRadius = size / 2 - 40
+  const maxValue = 5
+
+  function point(i, value) {
+    const angle = (Math.PI * 2 * i) / n - Math.PI / 2
+    const r = (value / maxValue) * maxRadius
+    return [center + r * Math.cos(angle), center + r * Math.sin(angle)]
+  }
+
+  const gridLevels = [1, 2, 3, 4, 5]
+  const polygonPoints = data.map((d, i) => point(i, d.value).join(',')).join(' ')
+
+  return (
+    <svg width={size} height={size}>
+      {gridLevels.map((lvl) => {
+        const pts = data.map((_, i) => point(i, lvl).join(',')).join(' ')
+        return <polygon key={lvl} points={pts} fill="none" stroke="#ddd" strokeWidth="1" />
+      })}
+      {data.map((d, i) => {
+        const [x, y] = point(i, maxValue)
+        return <line key={i} x1={center} y1={center} x2={x} y2={y} stroke="#ddd" strokeWidth="1" />
+      })}
+      <polygon points={polygonPoints} fill="rgba(176,141,62,0.35)" stroke={GOLD} strokeWidth="2" />
+      {data.map((d, i) => {
+        const [x, y] = point(i, maxValue + 0.9)
+        return (
+          <text key={i} x={x} y={y} fontSize="9" textAnchor="middle" fill={NAVY}>
+            {d.label.length > 14 ? d.label.slice(0, 14) + '…' : d.label}
+          </text>
+        )
+      })}
+    </svg>
   )
 }
