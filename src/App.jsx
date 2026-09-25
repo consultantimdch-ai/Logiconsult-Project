@@ -1,21 +1,24 @@
 // src/App.jsx
 //
-// Gère la navigation entre le Dashboard et l'écran "Nouvelle mission".
+// Gère la navigation entre Dashboard, Nouvelle mission, et Détail mission.
 
 import { useState } from 'react'
 import Dashboard from './components/Dashboard'
 import NewMission from './components/NewMission'
+import MissionDetail from './components/MissionDetail'
 
 export default function App() {
-  const [screen, setScreen] = useState('dashboard') // 'dashboard' | 'new-mission'
+  const [screen, setScreen] = useState('dashboard') // 'dashboard' | 'new-mission' | 'mission-detail'
+  const [selectedMissionId, setSelectedMissionId] = useState(null)
 
   function handleOpenMission(missionId) {
-    alert('Écran "Détail mission" pas encore construit. Mission id : ' + missionId)
+    setSelectedMissionId(missionId)
+    setScreen('mission-detail')
   }
 
   function handleMissionCreated(missionId) {
-    alert('Mission créée avec succès ! (id : ' + missionId + ') — écran de détail à venir.')
-    setScreen('dashboard')
+    setSelectedMissionId(missionId)
+    setScreen('mission-detail')
   }
 
   if (screen === 'new-mission') {
@@ -23,6 +26,15 @@ export default function App() {
       <NewMission
         onCancel={() => setScreen('dashboard')}
         onCreated={handleMissionCreated}
+      />
+    )
+  }
+
+  if (screen === 'mission-detail') {
+    return (
+      <MissionDetail
+        missionId={selectedMissionId}
+        onBack={() => setScreen('dashboard')}
       />
     )
   }
