@@ -13,6 +13,11 @@ import { genererPlanTresorerie } from '../lib/genererPlanTresorerie'
 import { genererMPAFC } from '../lib/genererMPAFC'
 import { genererGrilleDelegation } from '../lib/genererGrilleDelegation'
 import { genererRapportBailleur } from '../lib/genererRapportBailleur'
+import { genererOrganigramme } from '../lib/genererOrganigramme'
+import { genererManuelRH } from '../lib/genererManuelRH'
+import { genererReglementInterieur } from '../lib/genererReglementInterieur'
+import { genererFicheDePoste } from '../lib/genererFicheDePoste'
+import { genererManuelGouvernance } from '../lib/genererManuelGouvernance'
 
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
@@ -146,12 +151,28 @@ export default function Documents({ mission }) {
 
   const disponibleProjet = mission.domaines.includes('projet')
   const disponibleFinancier = mission.domaines.includes('financier')
+  const disponibleOrganisationnel = mission.domaines.includes('organisationnel')
+
+  async function genererOrga(fn, label) {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchClientEtFiche('fiche_organisationnelle')
+      await fn({ client, fiche })
+      setMsg(`${label} téléchargé(e).`)
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
 
   return (
     <div>
       <h2 style={{ color: NAVY, fontSize: 16, marginBottom: 16 }}>Documents générables</h2>
 
-      {!disponibleProjet && !disponibleFinancier && (
+      {!disponibleProjet && !disponibleFinancier && !disponibleOrganisationnel && (
         <p style={{ fontSize: 13, color: '#666' }}>
           Aucun domaine avec documents disponibles n'est sélectionné pour cette mission.
         </p>
@@ -213,12 +234,52 @@ export default function Documents({ mission }) {
             />
           </>
         )}
+
+        {disponibleOrganisationnel && (
+          <>
+            <DocCard
+              titre="Organigramme"
+              description="Structure hiérarchique adaptée à l'effectif renseigné."
+              onClick={() => genererOrga(genererOrganigramme, 'Organigramme')}
+              busy={busy}
+              format="Word"
+            />
+            <DocCard
+              titre="Manuel RH"
+              description="Recrutement, évaluation, formation, motivation."
+              onClick={() => genererOrga(genererManuelRH, 'Manuel RH')}
+              busy={busy}
+              format="Word"
+            />
+            <DocCard
+              titre="Règlement intérieur"
+              description="Modèle de base — à faire valider par un juriste."
+              onClick={() => genererOrga(genererReglementInterieur, 'Règlement intérieur')}
+              busy={busy}
+              format="Word"
+            />
+            <DocCard
+              titre="Fiche de poste (modèle)"
+              description="Modèle vierge à dupliquer pour chaque fonction clé."
+              onClick={() => genererOrga(genererFicheDePoste, 'Fiche de poste')}
+              busy={busy}
+              format="Word"
+            />
+            <DocCard
+              titre="Manuel de gouvernance"
+              description="Rôles des instances (AG, CA, direction), fréquence de réunion."
+              onClick={() => genererOrga(genererManuelGouvernance, 'Manuel de gouvernance')}
+              busy={busy}
+              format="Word"
+            />
+          </>
+        )}
       </div>
 
       {msg && <p style={{ fontSize: 12, color: msg.startsWith('Erreur') ? '#C0392B' : '#2E7D32', marginTop: 14 }}>{msg}</p>}
 
       <p style={{ fontSize: 11, color: '#999', marginTop: 24 }}>
-        D'autres documents (organigramme, manuel RH, règlement intérieur, cadre logique...) seront ajoutés ici progressivement.
+        D'autres documents (cadre logique, plan de suivi-évaluation, registre des risques...) seront ajoutés ici progressivement.
       </p>
     </div>
   )
