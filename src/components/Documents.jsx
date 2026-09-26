@@ -7,6 +7,9 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { genererTableauBordExcel } from '../lib/genererTableauBordExcel'
+import { genererPlanComptable } from '../lib/genererPlanComptable'
+import { genererModeleBudget } from '../lib/genererModeleBudget'
+import { genererPlanTresorerie } from '../lib/genererPlanTresorerie'
 
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
@@ -37,41 +40,129 @@ export default function Documents({ mission }) {
     }
   }
 
-  const disponible = mission.domaines.includes('projet')
+  async function fetchClientEtFiche(ficheTable) {
+    const [{ data: client }, { data: fiche }] = await Promise.all([
+      supabase.from('clients').select('*').eq('id', mission.clients?.id).single(),
+      ficheTable
+        ? supabase.from(ficheTable).select('*').eq('mission_id', mission.id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+    return { client, fiche }
+  }
+
+  async function handleGenererPlanComptable() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchClientEtFiche('fiche_financiere')
+      await genererPlanComptable({ client, fiche })
+      setMsg('Plan comptable téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  async function handleGenererModeleBudget() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchClientEtFiche('fiche_financiere')
+      await genererModeleBudget({ client, fiche, exercice: fiche?.exercice_comptable })
+      setMsg('Modèle de budget téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  async function handleGenererPlanTresorerie() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client } = await fetchClientEtFiche(null)
+      await genererPlanTresorerie({ client, soldeInitial: 0 })
+      setMsg('Plan de trésorerie téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  const disponibleProjet = mission.domaines.includes('projet')
+  const disponibleFinancier = mission.domaines.includes('financier')
 
   return (
     <div>
       <h2 style={{ color: NAVY, fontSize: 16, marginBottom: 16 }}>Documents générables</h2>
 
-      {!disponible && (
+      {!disponibleProjet && !disponibleFinancier && (
         <p style={{ fontSize: 13, color: '#666' }}>
-          Le domaine "Gestion de projet" n'est pas sélectionné pour cette mission — aucun document disponible pour l'instant.
+          Aucun domaine avec documents disponibles n'est sélectionné pour cette mission.
         </p>
       )}
 
-      {disponible && (
-        <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, maxWidth: 400 }}>
-          <div style={{ fontWeight: 'bold', color: NAVY, fontSize: 14, marginBottom: 4 }}>
-            Tableau de bord de suivi de projet
-          </div>
-          <div style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-            Format Excel — fiche projet, indicateurs, jalons, budget (avec formules).
-          </div>
-          <button
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {disponibleProjet && (
+          <DocCard
+            titre="Tableau de bord de suivi de projet"
+            description="Fiche projet, indicateurs, jalons, budget (avec formules)."
             onClick={handleGenererTableauBord}
-            disabled={busy}
-            style={{ backgroundColor: GOLD, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontSize: 13 }}
-          >
-            {busy ? 'Génération…' : 'Télécharger (Excel)'}
-          </button>
-        </div>
-      )}
+            busy={busy}
+          />
+        )}
 
-      {msg && <p style={{ fontSize: 12, color: msg.startsWith('Erreur') ? '#C0392B' : '#2E7D32', marginTop: 10 }}>{msg}</p>}
+        {disponibleFinancier && (
+          <>
+            <DocCard
+              titre="Plan comptable"
+              description="Canevas SYSCOHADA de base, à adapter à l'activité."
+              onClick={handleGenererPlanComptable}
+              busy={busy}
+            />
+            <DocCard
+              titre="Modèle de budget annuel"
+              description="Produits/Charges avec répartition mensuelle et solde."
+              onClick={handleGenererModeleBudget}
+              busy={busy}
+            />
+            <DocCard
+              titre="Plan de trésorerie prévisionnel"
+              description="12 mois, entrées/sorties, solde cumulé calculé."
+              onClick={handleGenererPlanTresorerie}
+              busy={busy}
+            />
+          </>
+        )}
+      </div>
+
+      {msg && <p style={{ fontSize: 12, color: msg.startsWith('Erreur') ? '#C0392B' : '#2E7D32', marginTop: 14 }}>{msg}</p>}
 
       <p style={{ fontSize: 11, color: '#999', marginTop: 24 }}>
         D'autres documents (MPAFC, manuel de procédures, organigramme, cadre logique...) seront ajoutés ici progressivement.
       </p>
+    </div>
+  )
+}
+
+function DocCard({ titre, description, onClick, busy }) {
+  return (
+    <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, width: 260 }}>
+      <div style={{ fontWeight: 'bold', color: NAVY, fontSize: 14, marginBottom: 4 }}>{titre}</div>
+      <div style={{ fontSize: 12, color: '#666', marginBottom: 12, minHeight: 32 }}>{description}</div>
+      <button
+        onClick={onClick}
+        disabled={busy}
+        style={{ backgroundColor: GOLD, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontSize: 13 }}
+      >
+        {busy ? 'Génération…' : 'Télécharger (Excel)'}
+      </button>
     </div>
   )
 }
