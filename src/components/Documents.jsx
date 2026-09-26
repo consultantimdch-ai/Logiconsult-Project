@@ -10,6 +10,9 @@ import { genererTableauBordExcel } from '../lib/genererTableauBordExcel'
 import { genererPlanComptable } from '../lib/genererPlanComptable'
 import { genererModeleBudget } from '../lib/genererModeleBudget'
 import { genererPlanTresorerie } from '../lib/genererPlanTresorerie'
+import { genererMPAFC } from '../lib/genererMPAFC'
+import { genererGrilleDelegation } from '../lib/genererGrilleDelegation'
+import { genererRapportBailleur } from '../lib/genererRapportBailleur'
 
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
@@ -95,6 +98,52 @@ export default function Documents({ mission }) {
     }
   }
 
+  async function handleGenererMPAFC() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchClientEtFiche('fiche_financiere')
+      await genererMPAFC({ client, fiche, mission })
+      setMsg('MPAFC téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  async function handleGenererGrilleDelegation() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchClientEtFiche('fiche_financiere')
+      await genererGrilleDelegation({ client, fiche })
+      setMsg('Grille de délégation téléchargée.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  async function handleGenererRapportBailleur() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchClientEtFiche('fiche_financiere')
+      const { data: budget } = await supabase.from('budget_lignes').select('*').eq('mission_id', mission.id)
+      await genererRapportBailleur({ client, mission, fiche, budget })
+      setMsg('Rapport bailleur téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
   const disponibleProjet = mission.domaines.includes('projet')
   const disponibleFinancier = mission.domaines.includes('financier')
 
@@ -125,18 +174,42 @@ export default function Documents({ mission }) {
               description="Canevas SYSCOHADA de base, à adapter à l'activité."
               onClick={handleGenererPlanComptable}
               busy={busy}
+              format="Excel"
             />
             <DocCard
               titre="Modèle de budget annuel"
               description="Produits/Charges avec répartition mensuelle et solde."
               onClick={handleGenererModeleBudget}
               busy={busy}
+              format="Excel"
             />
             <DocCard
               titre="Plan de trésorerie prévisionnel"
               description="12 mois, entrées/sorties, solde cumulé calculé."
               onClick={handleGenererPlanTresorerie}
               busy={busy}
+              format="Excel"
+            />
+            <DocCard
+              titre="MPAFC"
+              description="Manuel de procédures administratives, financières et comptables."
+              onClick={handleGenererMPAFC}
+              busy={busy}
+              format="Word"
+            />
+            <DocCard
+              titre="Grille de délégation de signature"
+              description="Niveaux d'autorisation de dépense par tranche de montant."
+              onClick={handleGenererGrilleDelegation}
+              busy={busy}
+              format="Word"
+            />
+            <DocCard
+              titre="Rapport bailleur"
+              description="Modèle de rapport financier périodique, pré-rempli avec le budget saisi."
+              onClick={handleGenererRapportBailleur}
+              busy={busy}
+              format="Word"
             />
           </>
         )}
@@ -145,13 +218,13 @@ export default function Documents({ mission }) {
       {msg && <p style={{ fontSize: 12, color: msg.startsWith('Erreur') ? '#C0392B' : '#2E7D32', marginTop: 14 }}>{msg}</p>}
 
       <p style={{ fontSize: 11, color: '#999', marginTop: 24 }}>
-        D'autres documents (MPAFC, manuel de procédures, organigramme, cadre logique...) seront ajoutés ici progressivement.
+        D'autres documents (organigramme, manuel RH, règlement intérieur, cadre logique...) seront ajoutés ici progressivement.
       </p>
     </div>
   )
 }
 
-function DocCard({ titre, description, onClick, busy }) {
+function DocCard({ titre, description, onClick, busy, format = 'Excel' }) {
   return (
     <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, width: 260 }}>
       <div style={{ fontWeight: 'bold', color: NAVY, fontSize: 14, marginBottom: 4 }}>{titre}</div>
@@ -161,7 +234,7 @@ function DocCard({ titre, description, onClick, busy }) {
         disabled={busy}
         style={{ backgroundColor: GOLD, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontSize: 13 }}
       >
-        {busy ? 'Génération…' : 'Télécharger (Excel)'}
+        {busy ? 'Génération…' : `Télécharger (${format})`}
       </button>
     </div>
   )
