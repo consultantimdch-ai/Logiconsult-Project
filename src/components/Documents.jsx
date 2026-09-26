@@ -7,6 +7,10 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { genererTableauBordExcel } from '../lib/genererTableauBordExcel'
+import { genererCadreLogique } from '../lib/genererCadreLogique'
+import { genererPlanSuiviEvaluation } from '../lib/genererPlanSuiviEvaluation'
+import { genererRegistreRisques } from '../lib/genererRegistreRisques'
+import { genererPlanPartiesPrenantes } from '../lib/genererPlanPartiesPrenantes'
 import { genererPlanComptable } from '../lib/genererPlanComptable'
 import { genererModeleBudget } from '../lib/genererModeleBudget'
 import { genererPlanTresorerie } from '../lib/genererPlanTresorerie'
@@ -40,6 +44,75 @@ export default function Documents({ mission }) {
 
       await genererTableauBordExcel({ mission, client, fiche, indicateurs, jalons, budget })
       setMsg('Tableau de bord téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  async function fetchDonneesProjet() {
+    const [{ data: client }, { data: fiche }, { data: indicateurs }] = await Promise.all([
+      supabase.from('clients').select('*').eq('id', mission.clients?.id).single(),
+      supabase.from('fiche_projet').select('*').eq('mission_id', mission.id).maybeSingle(),
+      supabase.from('indicateurs').select('*').eq('mission_id', mission.id),
+    ])
+    return { client, fiche, indicateurs }
+  }
+
+  async function handleGenererCadreLogique() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche, indicateurs } = await fetchDonneesProjet()
+      await genererCadreLogique({ client, fiche, indicateurs })
+      setMsg('Cadre logique téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  async function handleGenererPlanSE() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche, indicateurs } = await fetchDonneesProjet()
+      await genererPlanSuiviEvaluation({ client, fiche, indicateurs })
+      setMsg('Plan de suivi-évaluation téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  async function handleGenererRegistreRisques() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchDonneesProjet()
+      await genererRegistreRisques({ client, fiche })
+      setMsg('Registre des risques téléchargé.')
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  async function handleGenererPartiesPrenantes() {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchDonneesProjet()
+      await genererPlanPartiesPrenantes({ client, fiche })
+      setMsg('Plan parties prenantes téléchargé.')
     } catch (err) {
       setMsg('Erreur : ' + err.message)
     } finally {
@@ -180,12 +253,38 @@ export default function Documents({ mission }) {
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         {disponibleProjet && (
-          <DocCard
-            titre="Tableau de bord de suivi de projet"
-            description="Fiche projet, indicateurs, jalons, budget (avec formules)."
-            onClick={handleGenererTableauBord}
-            busy={busy}
-          />
+          <>
+            <DocCard
+              titre="Tableau de bord de suivi de projet"
+              description="Fiche projet, indicateurs, jalons, budget (avec formules)."
+              onClick={handleGenererTableauBord}
+              busy={busy}
+            />
+            <DocCard
+              titre="Cadre logique"
+              description="Objectif global, objectifs spécifiques, résultats, indicateurs."
+              onClick={handleGenererCadreLogique}
+              busy={busy}
+            />
+            <DocCard
+              titre="Plan de suivi-évaluation (MEAL)"
+              description="Basé directement sur les indicateurs saisis."
+              onClick={handleGenererPlanSE}
+              busy={busy}
+            />
+            <DocCard
+              titre="Registre des risques"
+              description="Avec exemples et niveau de risque calculé automatiquement."
+              onClick={handleGenererRegistreRisques}
+              busy={busy}
+            />
+            <DocCard
+              titre="Plan parties prenantes"
+              description="Cartographie et stratégie de communication par partie prenante."
+              onClick={handleGenererPartiesPrenantes}
+              busy={busy}
+            />
+          </>
         )}
 
         {disponibleFinancier && (
