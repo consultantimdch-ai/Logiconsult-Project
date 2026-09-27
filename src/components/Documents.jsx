@@ -6,11 +6,7 @@
 
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { genererTableauBordExcel } from '../lib/genererTableauBordExcel'
-import { genererCadreLogique } from '../lib/genererCadreLogique'
-import { genererPlanSuiviEvaluation } from '../lib/genererPlanSuiviEvaluation'
-import { genererRegistreRisques } from '../lib/genererRegistreRisques'
-import { genererPlanPartiesPrenantes } from '../lib/genererPlanPartiesPrenantes'
+import { genererRapportAudit } from '../lib/genererRapportAudit'
 import { genererPlanComptable } from '../lib/genererPlanComptable'
 import { genererModeleBudget } from '../lib/genererModeleBudget'
 import { genererPlanTresorerie } from '../lib/genererPlanTresorerie'
@@ -30,89 +26,48 @@ export default function Documents({ mission }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
 
-  async function handleGenererTableauBord() {
+  async function handleGenererRapportAudit() {
     setBusy(true)
     setMsg('')
     try {
-      const [{ data: client }, { data: fiche }, { data: indicateurs }, { data: jalons }, { data: budget }] = await Promise.all([
-        supabase.from('clients').select('*').eq('id', mission.clients?.id).single(),
-        supabase.from('fiche_projet').select('*').eq('mission_id', mission.id).maybeSingle(),
-        supabase.from('indicateurs').select('*').eq('mission_id', mission.id),
-        supabase.from('jalons').select('*').eq('mission_id', mission.id),
-        supabase.from('budget_lignes').select('*').eq('mission_id', mission.id),
-      ])
+      const { data: client } = await supabase.from('clients').select('*').eq('id', mission.clients?.id).single()
 
-      await genererTableauBordExcel({ mission, client, fiche, indicateurs, jalons, budget })
-      setMsg('Tableau de bord téléchargé.')
-    } catch (err) {
-      setMsg('Erreur : ' + err.message)
-    } finally {
-      setBusy(false)
-      setTimeout(() => setMsg(''), 4000)
-    }
-  }
+      const { data: criteres } = await supabase
+        .from('criteres_audit')
+        .select('id, domaine, axe, numero, libelle')
+        .in('domaine', mission.domaines)
+        .order('numero')
 
-  async function fetchDonneesProjet() {
-    const [{ data: client }, { data: fiche }, { data: indicateurs }] = await Promise.all([
-      supabase.from('clients').select('*').eq('id', mission.clients?.id).single(),
-      supabase.from('fiche_projet').select('*').eq('mission_id', mission.id).maybeSingle(),
-      supabase.from('indicateurs').select('*').eq('mission_id', mission.id),
-    ])
-    return { client, fiche, indicateurs }
-  }
+      const { data: scoresData } = await supabase
+        .from('audit_scores')
+        .select('critere_id, score, commentaire')
+        .eq('mission_id', mission.id)
+      const scores = {}
+      ;(scoresData || []).forEach((s) => { scores[s.critere_id] = { score: s.score, commentaire: s.commentaire } })
 
-  async function handleGenererCadreLogique() {
-    setBusy(true)
-    setMsg('')
-    try {
-      const { client, fiche, indicateurs } = await fetchDonneesProjet()
-      await genererCadreLogique({ client, fiche, indicateurs })
-      setMsg('Cadre logique téléchargé.')
-    } catch (err) {
-      setMsg('Erreur : ' + err.message)
-    } finally {
-      setBusy(false)
-      setTimeout(() => setMsg(''), 4000)
-    }
-  }
+      const { data: recommandations } = await supabase
+        .from('recommandations')
+        .select('texte, statut')
+        .eq('mission_id', mission.id)
 
-  async function handleGenererPlanSE() {
-    setBusy(true)
-    setMsg('')
-    try {
-      const { client, fiche, indicateurs } = await fetchDonneesProjet()
-      await genererPlanSuiviEvaluation({ client, fiche, indicateurs })
-      setMsg('Plan de suivi-évaluation téléchargé.')
-    } catch (err) {
-      setMsg('Erreur : ' + err.message)
-    } finally {
-      setBusy(false)
-      setTimeout(() => setMsg(''), 4000)
-    }
-  }
+      let missionPrecedente = null
+      let scoresPrecedents = []
+      if (mission.mission_precedente_id) {
+        const { data: prevMission } = await supabase
+          .from('missions')
+          .select('id, date_mission, domaines')
+          .eq('id', mission.mission_precedente_id)
+          .single()
+        missionPrecedente = prevMission
+        const { data: prevScores } = await supabase
+          .from('audit_scores')
+          .select('critere_id, score, criteres_audit(domaine)')
+          .eq('mission_id', mission.mission_precedente_id)
+        scoresPrecedents = prevScores || []
+      }
 
-  async function handleGenererRegistreRisques() {
-    setBusy(true)
-    setMsg('')
-    try {
-      const { client, fiche } = await fetchDonneesProjet()
-      await genererRegistreRisques({ client, fiche })
-      setMsg('Registre des risques téléchargé.')
-    } catch (err) {
-      setMsg('Erreur : ' + err.message)
-    } finally {
-      setBusy(false)
-      setTimeout(() => setMsg(''), 4000)
-    }
-  }
-
-  async function handleGenererPartiesPrenantes() {
-    setBusy(true)
-    setMsg('')
-    try {
-      const { client, fiche } = await fetchDonneesProjet()
-      await genererPlanPartiesPrenantes({ client, fiche })
-      setMsg('Plan parties prenantes téléchargé.')
+      await genererRapportAudit({ client, mission, criteres: criteres || [], scores, recommandations, missionPrecedente, scoresPrecedents })
+      setMsg("Rapport d'audit téléchargé.")
     } catch (err) {
       setMsg('Erreur : ' + err.message)
     } finally {
@@ -222,7 +177,6 @@ export default function Documents({ mission }) {
     }
   }
 
-  const disponibleProjet = mission.domaines.includes('projet')
   const disponibleFinancier = mission.domaines.includes('financier')
   const disponibleOrganisationnel = mission.domaines.includes('organisationnel')
 
@@ -245,46 +199,23 @@ export default function Documents({ mission }) {
     <div>
       <h2 style={{ color: NAVY, fontSize: 16, marginBottom: 16 }}>Documents générables</h2>
 
-      {!disponibleProjet && !disponibleFinancier && !disponibleOrganisationnel && (
-        <p style={{ fontSize: 13, color: '#666' }}>
-          Aucun domaine avec documents disponibles n'est sélectionné pour cette mission.
-        </p>
-      )}
+      <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
+        Le rapport d'audit est toujours disponible. Les documents ci-dessous dépendent des domaines sélectionnés pour cette mission.
+      </p>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {disponibleProjet && (
-          <>
-            <DocCard
-              titre="Tableau de bord de suivi de projet"
-              description="Fiche projet, indicateurs, jalons, budget (avec formules)."
-              onClick={handleGenererTableauBord}
-              busy={busy}
-            />
-            <DocCard
-              titre="Cadre logique"
-              description="Objectif global, objectifs spécifiques, résultats, indicateurs."
-              onClick={handleGenererCadreLogique}
-              busy={busy}
-            />
-            <DocCard
-              titre="Plan de suivi-évaluation (MEAL)"
-              description="Basé directement sur les indicateurs saisis."
-              onClick={handleGenererPlanSE}
-              busy={busy}
-            />
-            <DocCard
-              titre="Registre des risques"
-              description="Avec exemples et niveau de risque calculé automatiquement."
-              onClick={handleGenererRegistreRisques}
-              busy={busy}
-            />
-            <DocCard
-              titre="Plan parties prenantes"
-              description="Cartographie et stratégie de communication par partie prenante."
-              onClick={handleGenererPartiesPrenantes}
-              busy={busy}
-            />
-          </>
+        <DocCard
+          titre="Rapport d'audit complet"
+          description="Synthèse des scores, points critiques, recommandations et évolution."
+          onClick={handleGenererRapportAudit}
+          busy={busy}
+          format="Word"
+        />
+
+        {mission.domaines.includes('projet') && (
+          <div style={{ border: '1px dashed #ccc', borderRadius: 8, padding: 16, width: 260, display: 'flex', alignItems: 'center', fontSize: 13, color: '#666' }}>
+            Les documents du domaine Projet (tableau de bord, cadre logique, plan S&amp;E, registre des risques, parties prenantes) se génèrent depuis l'onglet <strong>"Projets"</strong> du Dashboard, sur le projet lié à cette mission.
+          </div>
         )}
 
         {disponibleFinancier && (
@@ -378,7 +309,7 @@ export default function Documents({ mission }) {
       {msg && <p style={{ fontSize: 12, color: msg.startsWith('Erreur') ? '#C0392B' : '#2E7D32', marginTop: 14 }}>{msg}</p>}
 
       <p style={{ fontSize: 11, color: '#999', marginTop: 24 }}>
-        D'autres documents (cadre logique, plan de suivi-évaluation, registre des risques...) seront ajoutés ici progressivement.
+        Documents du domaine Projet disponibles depuis l'onglet "Projets" du Dashboard.
       </p>
     </div>
   )
