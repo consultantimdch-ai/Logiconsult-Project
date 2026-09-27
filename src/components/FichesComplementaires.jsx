@@ -24,7 +24,6 @@ const saveBtn = {
 export default function FichesComplementaires({ missionId, domaines }) {
   return (
     <div>
-      {domaines.includes('projet') && <FicheProjetForm missionId={missionId} />}
       {domaines.includes('financier') && <FicheFinanciereForm missionId={missionId} />}
       {domaines.includes('organisationnel') && <FicheOrganisationnelleForm missionId={missionId} />}
     </div>
@@ -66,36 +65,6 @@ function useFiche(table, missionId, emptyForm) {
   }
 
   return { form, set, save, saving, msg, loading }
-}
-
-// ---------------- Fiche Projet ----------------
-function FicheProjetForm({ missionId }) {
-  const { form, set, save, saving, msg, loading } = useFiche('fiche_projet', missionId, {
-    nom_projet: '', bailleur: '', chef_projet: '', date_debut: '', date_fin_prevue: '',
-    objectif_global: '', objectifs_specifiques: '', zone_intervention: '',
-  })
-  if (loading) return null
-  return (
-    <div>
-      <h3 style={sectionTitle}>Fiche projet</h3>
-      <Field label="Nom du projet" value={form.nom_projet} onChange={(v) => set('nom_projet', v)} />
-      <Field label="Bailleur / financement" value={form.bailleur} onChange={(v) => set('bailleur', v)} />
-      <Field label="Chef de projet" value={form.chef_projet} onChange={(v) => set('chef_projet', v)} />
-      <div style={{ display: 'flex', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <Field label="Date de début" type="date" value={form.date_debut} onChange={(v) => set('date_debut', v)} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <Field label="Date de fin prévue" type="date" value={form.date_fin_prevue} onChange={(v) => set('date_fin_prevue', v)} />
-        </div>
-      </div>
-      <Field label="Objectif global" textarea value={form.objectif_global} onChange={(v) => set('objectif_global', v)} />
-      <Field label="Objectifs spécifiques" textarea value={form.objectifs_specifiques} onChange={(v) => set('objectifs_specifiques', v)} />
-      <Field label="Zone d'intervention" value={form.zone_intervention} onChange={(v) => set('zone_intervention', v)} />
-      <button style={saveBtn} onClick={save} disabled={saving}>{saving ? '...' : 'Enregistrer la fiche projet'}</button>
-      {msg && <span style={{ marginLeft: 10, fontSize: 12, color: '#2E7D32' }}>{msg}</span>}
-    </div>
-  )
 }
 
 // ---------------- Fiche Financière ----------------
