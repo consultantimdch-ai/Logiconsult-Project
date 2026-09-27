@@ -15,7 +15,7 @@ const EXEMPLES = [
   ['Autorités locales', 'Conformité et coordination territoriale', 'Moyen', 'Moyen', 'Courriers officiels, réunions ponctuelles'],
 ]
 
-export async function genererPlanPartiesPrenantes({ client, fiche }) {
+export async function genererPlanPartiesPrenantes({ client, fiche, partiesPrenantes }) {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Parties prenantes')
 
@@ -38,15 +38,22 @@ export async function genererPlanPartiesPrenantes({ client, fiche }) {
     cell.alignment = { wrapText: true, vertical: 'middle' }
   })
 
-  EXEMPLES.forEach((ex, i) => {
+  const donnees = partiesPrenantes && partiesPrenantes.length > 0
+    ? partiesPrenantes.map((pp) => [pp.nom, pp.enjeu, pp.influence, pp.interet, pp.strategie_communication])
+    : EXEMPLES
+
+  donnees.forEach((ex, i) => {
     const r = headerRow + 1 + i
     ex.forEach((val, ci) => {
       ws.getCell(r, ci + 1).value = val
     })
   })
 
-  for (let i = 0; i < 5; i++) {
-    ws.getRow(headerRow + 1 + EXEMPLES.length + i)
+  if (!partiesPrenantes || partiesPrenantes.length === 0) {
+    const noteRow = headerRow + 1 + donnees.length + 1
+    ws.mergeCells(`A${noteRow}:E${noteRow}`)
+    ws.getCell(noteRow, 1).value = "Exemples génériques — aucune partie prenante n'a encore été saisie pour ce projet."
+    ws.getCell(noteRow, 1).font = { italic: true, size: 9, color: { argb: 'FFC0392B' } }
   }
 
   const buffer = await wb.xlsx.writeBuffer()
