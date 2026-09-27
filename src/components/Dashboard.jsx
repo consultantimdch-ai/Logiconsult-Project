@@ -1,10 +1,13 @@
 // src/components/Dashboard.jsx
 //
-// Écran d'accueil : liste des missions d'audit + bouton "Nouvelle mission".
-// À coller dans ton projet. Suppose que src/lib/supabaseClient.js existe déjà.
+// Écran d'accueil : onglets Missions / Projets. Le volet Projets est géré
+// entièrement en interne (jamais besoin de toucher App.jsx pour ça).
+// À coller dans ton projet.
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import ProjetsList from './ProjetsList'
+import ProjetDetail from './ProjetDetail'
 
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
@@ -21,6 +24,61 @@ const DOMAINE_LABELS = {
 }
 
 export default function Dashboard({ onOpenMission, onNewMission }) {
+  const [vue, setVue] = useState('missions') // 'missions' | 'projets' | 'projet-detail'
+  const [projetOuvertId, setProjetOuvertId] = useState(null)
+
+  if (vue === 'projet-detail') {
+    return (
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>
+        <ProjetDetail projetId={projetOuvertId} onBack={() => setVue('projets')} />
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '24px 16px', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ marginBottom: 8 }}>
+        <h1 style={{ color: NAVY, fontSize: 24, fontWeight: 'bold', margin: 0 }}>
+          {vue === 'missions' ? 'Mes missions d\u2019audit' : 'Mes projets'}
+        </h1>
+        <p style={{ color: '#666', fontSize: 13, margin: '4px 0 0' }}>
+          Imadou-Dini IMOROU — Consultant en Management Organisationnel &amp; SERA/MEAL
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', gap: 4, margin: '16px 0 20px' }}>
+        <button
+          onClick={() => setVue('missions')}
+          style={{
+            padding: '8px 16px', border: `1px solid ${NAVY}`, cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
+            backgroundColor: vue === 'missions' ? NAVY : '#fff', color: vue === 'missions' ? '#fff' : NAVY, borderRadius: 6,
+          }}
+        >
+          Missions d'audit
+        </button>
+        <button
+          onClick={() => setVue('projets')}
+          style={{
+            padding: '8px 16px', border: `1px solid ${NAVY}`, cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
+            backgroundColor: vue === 'projets' ? NAVY : '#fff', color: vue === 'projets' ? '#fff' : NAVY, borderRadius: 6,
+          }}
+        >
+          Projets
+        </button>
+      </div>
+
+      {vue === 'missions' && (
+        <MissionsView onOpenMission={onOpenMission} onNewMission={onNewMission} />
+      )}
+
+      {vue === 'projets' && (
+        <ProjetsList onOpenProjet={(id) => { setProjetOuvertId(id); setVue('projet-detail') }} />
+      )}
+    </div>
+  )
+}
+
+function MissionsView({ onOpenMission, onNewMission }) {
   const [missions, setMissions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -52,16 +110,8 @@ export default function Dashboard({ onOpenMission, onNewMission }) {
   }
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: '24px 16px', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ color: NAVY, fontSize: 24, fontWeight: 'bold', margin: 0 }}>
-            Mes missions d'audit
-          </h1>
-          <p style={{ color: '#666', fontSize: 13, margin: '4px 0 0' }}>
-            Imadou-Dini IMOROU — Consultant en Management Organisationnel &amp; SERA/MEAL
-          </p>
-        </div>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
         <button
           onClick={onNewMission}
           style={{
