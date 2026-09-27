@@ -6,7 +6,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import FichesComplementaires from './FichesComplementaires'
-import DonneesProjet from './DonneesProjet'
 import Recommandations from './Recommandations'
 import ComparaisonMission from './ComparaisonMission'
 import PropositionCommerciale from './PropositionCommerciale'
@@ -53,7 +52,7 @@ export default function MissionDetail({ missionId, onBack }) {
     try {
       const { data: missionData, error: missionErr } = await supabase
         .from('missions')
-        .select('id, date_mission, domaines, statut, clients ( id, nom, secteur_activite )')
+        .select('id, date_mission, domaines, statut, projet_id, mission_precedente_id, clients ( id, nom, secteur_activite )')
         .eq('id', missionId)
         .single()
       if (missionErr) throw missionErr
@@ -229,12 +228,13 @@ export default function MissionDetail({ missionId, onBack }) {
         <div>
           <FichesComplementaires missionId={missionId} domaines={mission.domaines} />
           {mission.domaines.includes('projet') && (
-            <>
-              <h2 style={{ color: NAVY, fontSize: 16, marginTop: 24, marginBottom: 12 }}>
-                Indicateurs, jalons et budget
-              </h2>
-              <DonneesProjet missionId={missionId} />
-            </>
+            <div style={{ marginTop: 24, padding: 14, backgroundColor: '#F3ECDD', borderRadius: 8, fontSize: 13 }}>
+              La fiche projet, les indicateurs, jalons, budget, risques et parties prenantes se gèrent
+              désormais depuis l'onglet <strong>"Projets"</strong> du Dashboard (un projet peut être
+              audité sur plusieurs missions successives). {mission.projet_id
+                ? 'Cette mission est liée à un projet — retourne au Dashboard, onglet "Projets", pour le retrouver.'
+                : "Cette mission n'est liée à aucun projet pour l'instant."}
+            </div>
           )}
         </div>
       )}
