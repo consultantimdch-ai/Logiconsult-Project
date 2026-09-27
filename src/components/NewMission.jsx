@@ -24,6 +24,8 @@ export default function NewMission({ onCancel, onCreated }) {
   const [nouvelleNatureJuridique, setNouvelleNatureJuridique] = useState('')
   const [dateMission, setDateMission] = useState(() => new Date().toISOString().slice(0, 10))
   const [domainesChoisis, setDomainesChoisis] = useState([])
+  const [projets, setProjets] = useState([])
+  const [projetId, setProjetId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -36,6 +38,19 @@ export default function NewMission({ onCancel, onCreated }) {
         if (!error) setClients(data)
       })
   }, [])
+
+  useEffect(() => {
+    if (clientMode === 'existing' && clientId && domainesChoisis.includes('projet')) {
+      supabase
+        .from('projets')
+        .select('id, nom_projet')
+        .eq('client_id', clientId)
+        .then(({ data }) => setProjets(data || []))
+    } else {
+      setProjets([])
+      setProjetId('')
+    }
+  }, [clientId, clientMode, domainesChoisis])
 
   function toggleDomaine(value) {
     setDomainesChoisis((prev) =>
@@ -99,6 +114,7 @@ export default function NewMission({ onCancel, onCreated }) {
           domaines: domainesChoisis,
           statut: 'en_cours',
           mission_precedente_id: missionPrecedenteId,
+          projet_id: domainesChoisis.includes('projet') && projetId ? projetId : null,
         })
         .select()
         .single()
@@ -204,7 +220,33 @@ export default function NewMission({ onCancel, onCreated }) {
           ))}
         </fieldset>
 
-        {error && <p style={{ color: '#c0392b', fontSize: 14 }}>{error}</p>}
+        {/* ---- Projet lié (si domaine Projet coché) ---- */}
+        {domainesChoisis.includes('projet') && (
+          <fieldset style={fieldsetStyle}>
+            <legend style={legendStyle}>Projet audité</legend>
+            {clientMode === 'new' ? (
+              <p style={{ fontSize: 13, color: '#666' }}>
+                Ce client est nouveau — crée d'abord le projet depuis l'onglet "Projets" du Dashboard, puis reviens lier cette mission si besoin.
+              </p>
+            ) : !clientId ? (
+              <p style={{ fontSize: 13, color: '#666' }}>Choisis d'abord un client existant ci-dessus.</p>
+            ) : (
+              <>
+                <select value={projetId} onChange={(e) => setProjetId(e.target.value)} style={inputStyle}>
+                  <option value="">— Aucun projet lié (facultatif) —</option>
+                  {projets.map((p) => (
+                    <option key={p.id} value={p.id}>{p.nom_projet}</option>
+                  ))}
+                </select>
+                {projets.length === 0 && (
+                  <p style={{ fontSize: 12, color: '#666', marginTop: 6 }}>
+                    Aucun projet existant pour ce client — crée-le depuis l'onglet "Projets" du Dashboard si tu veux le lier à cette mission.
+                  </p>
+                )}
+              </>
+            )}
+          </fieldset>
+        )}
 
         <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
           <button
