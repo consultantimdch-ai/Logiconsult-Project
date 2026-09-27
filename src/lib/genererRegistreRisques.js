@@ -10,12 +10,12 @@ const NAVY = 'FF1B2A4A'
 const WHITE = 'FFFFFFFF'
 
 const EXEMPLES = [
-  ['Retard de décaissement du bailleur', 'Financier', 3, 3, 'Anticiper une trésorerie de réserve ; suivre le calendrier de décaissement', 'Chef de projet'],
-  ['Turnover du personnel clé', 'Ressources humaines', 2, 3, 'Plan de formation croisée ; documentation des processus', 'Coordination'],
-  ['Insécurité dans la zone d\u2019intervention', 'Contextuel', 2, 4, 'Suivi du contexte sécuritaire ; plan de contingence', 'Direction'],
+  ['Retard de décaissement du bailleur', 'Financier', 3, 3, null, 'Anticiper une trésorerie de réserve ; suivre le calendrier de décaissement', 'Chef de projet'],
+  ['Turnover du personnel clé', 'Ressources humaines', 2, 3, null, 'Plan de formation croisée ; documentation des processus', 'Coordination'],
+  ['Insécurité dans la zone d\u2019intervention', 'Contextuel', 2, 4, null, 'Suivi du contexte sécuritaire ; plan de contingence', 'Direction'],
 ]
 
-export async function genererRegistreRisques({ client, fiche }) {
+export async function genererRegistreRisques({ client, fiche, risques }) {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Registre des risques')
 
@@ -41,21 +41,25 @@ export async function genererRegistreRisques({ client, fiche }) {
     cell.alignment = { wrapText: true, vertical: 'middle' }
   })
 
-  EXEMPLES.forEach((ex, i) => {
+  const donnees = risques && risques.length > 0
+    ? risques.map((r) => [r.risque, r.categorie, r.probabilite, r.impact, null, r.mitigation, r.responsable])
+    : EXEMPLES
+
+  donnees.forEach((ex, i) => {
     const r = headerRow + 1 + i
     ws.getCell(r, 1).value = ex[0]
     ws.getCell(r, 2).value = ex[1]
     ws.getCell(r, 3).value = ex[2]
     ws.getCell(r, 4).value = ex[3]
-    ws.getCell(r, 5).value = { formula: `C${r}*D${r}` }
-    ws.getCell(r, 6).value = ex[4]
-    ws.getCell(r, 7).value = ex[5]
+    ws.getCell(r, 5).value = { formula: `IFERROR(C${r}*D${r},"")` }
+    ws.getCell(r, 6).value = ex[5]
+    ws.getCell(r, 7).value = ex[6]
   })
 
-  // lignes vides supplémentaires prêtes à l'emploi
-  for (let i = 0; i < 5; i++) {
-    const r = headerRow + 1 + EXEMPLES.length + i
-    ws.getCell(r, 5).value = { formula: `IFERROR(C${r}*D${r},"")` }
+  if (!risques || risques.length === 0) {
+    ws.mergeCells(`A${headerRow + 1 + donnees.length + 1}:G${headerRow + 1 + donnees.length + 1}`)
+    ws.getCell(headerRow + 1 + donnees.length + 1, 1).value = "Exemples génériques — aucun risque n'a encore été saisi pour ce projet."
+    ws.getCell(headerRow + 1 + donnees.length + 1, 1).font = { italic: true, size: 9, color: { argb: 'FFC0392B' } }
   }
 
   const buffer = await wb.xlsx.writeBuffer()
