@@ -1,10 +1,9 @@
 // src/components/PropositionCommerciale.jsx
 //
 // Génère un brouillon de proposition commerciale de mission de suivi,
-// à partir des points critiques détectés lors de l'audit.
-// Je n'ai pas les tarifs exacts de ta grille Méthode IMD : les champs
-// "nombre de jours" et "taux journalier" sont donc à ajuster toi-même,
-// ils ne sont pas pré-remplis avec de vrais tarifs.
+// avec une durée SUGGÉRÉE calculée à partir de la gravité (score d'audit)
+// et de la facilité de mise en œuvre des recommandations (quand renseignée).
+// Le taux journalier reste à ta charge (pas de tarifs Méthode IMD connus).
 // À coller dans src/components/.
 
 import { useEffect, useState } from 'react'
@@ -19,13 +18,25 @@ const DOMAINE_LABELS = {
   organisationnel: 'Gestion organisationnelle',
 }
 
+// Un point critique "moyen" (gravité 3, facilité non renseignée = 2 par défaut)
+// pèse environ cette valeur d'effort ; le diviseur calibre la conversion en jours.
+const DIVISEUR_EFFORT_PAR_JOUR = 3
+
 export default function PropositionCommerciale({ mission, criteresActuels, scoresActuels }) {
-  const [jours, setJours] = useState(5)
+  const [recommandations, setRecommandations] = useState([])
+  const [jours, setJours] = useState(1)
+  const [joursAjuste, setJoursAjuste] = useState(false)
   const [tauxJournalier, setTauxJournalier] = useState(0)
   const [texte, setTexte] = useState('')
   const [statut, setStatut] = useState('brouillon')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    supabase.from('recommandations').select('critere_id, facilite').eq('mission_id', mission.id).then(({ data }) => {
+      setRecommandations(data || [])
+    })
+  }, [mission.id])
 
   const pointsCritiques = criteresActuels
     .map((c) => ({ ...c, score: scoresActuels[c.id]?.score }))
@@ -33,6 +44,20 @@ export default function PropositionCommerciale({ mission, criteresActuels, score
 
   const domainesConcernes = [...new Set(pointsCritiques.map((c) => c.domaine))]
   const montant = jours * tauxJournalier
+
+  // ---- Calcul de l'effort cumulé : gravité × difficulté (inverse de la facilité) ----
+  const effortTotal = pointsCritiques.reduce((total, c) => {
+    const gravite = 5 - Number(c.score) // score 1 -> 4 ; score 2 -> 3
+    const reco = recommandations.find((r) => r.critere_id === c.id)
+    const facilite = reco?.facilite || 2 // valeur neutre par défaut si non renseignée
+    const difficulte = 5 - facilite // facile(4) -> 1 ; difficile(1) -> 4
+    return total + gravite * difficulte
+  }, 0)
+  const joursSuggeres = pointsCritiques.length === 0 ? 0 : Math.max(1, Math.round(effortTotal / DIVISEUR_EFFORT_PAR_JOUR))
+
+  useEffect(() => {
+    if (!joursAjuste) setJours(joursSuggeres)
+  }, [joursSuggeres, joursAjuste])
 
   useEffect(() => {
     if (texte) return // ne pas écraser un texte déjà édité manuellement
@@ -78,18 +103,33 @@ Montant proposé : ${montant.toLocaleString('fr-FR')} FCFA.`
   return (
     <div>
       <h2 style={{ color: NAVY, fontSize: 16, marginBottom: 6 }}>Proposition commerciale — mission de suivi</h2>
-      <p style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
+      <p style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>
         {pointsCritiques.length} point(s) critique(s) détecté(s) sur cette mission.
       </p>
+      {pointsCritiques.length > 0 && (
+        <p style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
+          Durée suggérée : <strong style={{ color: GOLD }}>{joursSuggeres} jour(s)</strong>, calculée à partir de la gravité
+          des écarts (score d'audit) et de leur facilité de mise en œuvre (renseignée dans l'onglet Recommandations —
+          une valeur neutre est utilisée pour celles non encore évaluées). Ajustable librement ci-dessous.
+        </p>
+      )}
 
       <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
         <div>
           <label style={{ fontSize: 12, fontWeight: 'bold' }}>Nombre de jours</label>
           <input
             type="number" min="1" value={jours}
-            onChange={(e) => setJours(Number(e.target.value))}
+            onChange={(e) => { setJours(Number(e.target.value)); setJoursAjuste(true) }}
             style={{ display: 'block', width: 100, padding: 6, marginTop: 4, border: '1px solid #ccc', borderRadius: 6 }}
           />
+          {joursAjuste && (
+            <button
+              onClick={() => setJoursAjuste(false)}
+              style={{ background: 'none', border: 'none', color: GOLD, fontSize: 11, cursor: 'pointer', marginTop: 4, padding: 0 }}
+            >
+              Revenir à la suggestion ({joursSuggeres})
+            </button>
+          )}
         </div>
         <div>
           <label style={{ fontSize: 12, fontWeight: 'bold' }}>Taux journalier (FCFA)</label>
@@ -140,7 +180,6 @@ Montant proposé : ${montant.toLocaleString('fr-FR')} FCFA.`
 
       <p style={{ fontSize: 11, color: '#999', marginTop: 10 }}>
         Le texte ci-dessus est un brouillon généré automatiquement — à relire et personnaliser avant envoi.
-        Pour l'instant, il se copie-colle manuellement (l'export direct en Word viendra avec le module de génération de documents).
       </p>
     </div>
   )
