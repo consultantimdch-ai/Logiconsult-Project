@@ -3,7 +3,83 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1B2A4A" />
     <title>Outil d'audit en gestion — Imadou-Dini IMOROU</title>
+    <style>
+      html, body { margin: 0; min-height: 100%; }
+
+      /* ---------- Fond principal : bleu nuit + lueurs dorées ---------- */
+      body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        background-color: #0b1430;
+        background-image:
+          radial-gradient(ellipse at 12% 8%, rgba(176, 141, 62, 0.38) 0%, transparent 45%),
+          radial-gradient(ellipse at 88% 18%, rgba(70, 110, 200, 0.32) 0%, transparent 50%),
+          radial-gradient(ellipse at 50% 105%, rgba(176, 141, 62, 0.25) 0%, transparent 55%),
+          linear-gradient(160deg, #0b1430 0%, #1B2A4A 55%, #142244 100%);
+        background-attachment: fixed;
+      }
+
+      /* ---------- Motif "constellation" discret ---------- */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        opacity: 0.9;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'><g stroke='%23B08D3E' stroke-opacity='0.22' stroke-width='1' fill='none'><path d='M40 60 L140 120 L230 70 L330 150 L430 90'/><path d='M140 120 L120 240 L230 300 L330 150'/><path d='M120 240 L40 340 L150 420 L230 300'/><path d='M230 300 L340 380 L440 300 L330 150'/></g><g fill='%23F3ECDD' fill-opacity='0.55'><circle cx='40' cy='60' r='2'/><circle cx='140' cy='120' r='2.5'/><circle cx='230' cy='70' r='2'/><circle cx='330' cy='150' r='3'/><circle cx='430' cy='90' r='2'/><circle cx='120' cy='240' r='2.5'/><circle cx='230' cy='300' r='3'/><circle cx='40' cy='340' r='2'/><circle cx='150' cy='420' r='2'/><circle cx='340' cy='380' r='2.5'/><circle cx='440' cy='300' r='2'/></g></svg>");
+        background-size: 480px 480px;
+      }
+
+      /* ---------- Lueurs animées (effet "fantastique") ---------- */
+      body::after {
+        content: '';
+        position: fixed;
+        inset: -5%;
+        z-index: -1;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 20% 30%, rgba(176, 141, 62, 0.20), transparent 35%),
+          radial-gradient(circle at 80% 72%, rgba(90, 130, 230, 0.20), transparent 38%),
+          radial-gradient(circle at 60% 15%, rgba(255, 255, 255, 0.06), transparent 30%);
+        animation: drift 18s ease-in-out infinite alternate;
+      }
+      @keyframes drift {
+        from { transform: translate3d(-2%, -1%, 0) scale(1); }
+        to   { transform: translate3d(2%, 2%, 0) scale(1.08); }
+      }
+
+      /* ---------- Carte de contenu propre et lisible ---------- */
+      #root > div {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 18px;
+        border-top: 4px solid #B08D3E;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.40);
+        margin: 28px auto !important;
+        animation: fadeUp 0.5s ease both;
+      }
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: none; }
+      }
+
+      /* ---------- Petits détails ---------- */
+      ::selection { background: #B08D3E; color: #fff; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: #B08D3E; border-radius: 6px; }
+      ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.08); }
+      button { transition: filter 0.15s ease, transform 0.15s ease; }
+      button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+
+      @media (max-width: 700px) {
+        #root > div { border-radius: 0; margin: 0 auto !important; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        body::after, #root > div { animation: none; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
