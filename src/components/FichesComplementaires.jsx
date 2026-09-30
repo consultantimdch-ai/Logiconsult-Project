@@ -26,6 +26,7 @@ export default function FichesComplementaires({ missionId, domaines }) {
     <div>
       {domaines.includes('financier') && <FicheFinanciereForm missionId={missionId} />}
       {domaines.includes('organisationnel') && <FicheOrganisationnelleForm missionId={missionId} />}
+      {domaines.includes('strategique') && <FicheStrategiqueForm missionId={missionId} />}
     </div>
   )
 }
@@ -113,6 +114,35 @@ function FicheOrganisationnelleForm({ missionId }) {
       </label>
       <Field label="Structure de gouvernance actuelle" textarea value={form.structure_gouvernance} onChange={(v) => set('structure_gouvernance', v)} />
       <button style={saveBtn} onClick={save} disabled={saving}>{saving ? '...' : 'Enregistrer la fiche organisationnelle'}</button>
+      {msg && <span style={{ marginLeft: 10, fontSize: 12, color: '#2E7D32' }}>{msg}</span>}
+    </div>
+  )
+}
+
+// ---------------- Fiche Stratégique ----------------
+function FicheStrategiqueForm({ missionId }) {
+  const { form, set, save, saving, msg, loading } = useFiche('fiche_strategique', missionId, {
+    vision: '', mission_texte: '', valeurs: '', objectifs_strategiques: '',
+    axes_strategiques: '', derniere_analyse_swot: '', prochaine_revue_strategique: '',
+  })
+  if (loading) return null
+  return (
+    <div>
+      <h3 style={sectionTitle}>Fiche stratégique</h3>
+      <Field label="Vision" textarea value={form.vision} onChange={(v) => set('vision', v)} />
+      <Field label="Mission" textarea value={form.mission_texte} onChange={(v) => set('mission_texte', v)} />
+      <Field label="Valeurs" textarea value={form.valeurs} onChange={(v) => set('valeurs', v)} />
+      <Field label="Objectifs stratégiques (3-5 ans)" textarea value={form.objectifs_strategiques} onChange={(v) => set('objectifs_strategiques', v)} />
+      <Field label="Axes stratégiques" textarea value={form.axes_strategiques} onChange={(v) => set('axes_strategiques', v)} />
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <Field label="Dernière analyse SWOT" type="date" value={form.derniere_analyse_swot} onChange={(v) => set('derniere_analyse_swot', v)} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <Field label="Prochaine revue stratégique" type="date" value={form.prochaine_revue_strategique} onChange={(v) => set('prochaine_revue_strategique', v)} />
+        </div>
+      </div>
+      <button style={saveBtn} onClick={save} disabled={saving}>{saving ? '...' : 'Enregistrer la fiche stratégique'}</button>
       {msg && <span style={{ marginLeft: 10, fontSize: 12, color: '#2E7D32' }}>{msg}</span>}
     </div>
   )
