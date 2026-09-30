@@ -16,6 +16,7 @@ const DOMAINE_LABELS = {
   projet: 'Gestion de projet',
   financier: 'Gestion financière',
   organisationnel: 'Gestion organisationnelle',
+  strategique: 'Gestion stratégique',
 }
 
 // Un point critique "moyen" (gravité 3, facilité non renseignée = 2 par défaut)
