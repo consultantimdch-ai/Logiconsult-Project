@@ -21,6 +21,7 @@ const DOMAINE_LABELS = {
   projet: 'Projet',
   financier: 'Financier',
   organisationnel: 'Organisationnel',
+  strategique: 'Stratégique',
 }
 
 export default function Dashboard({ onOpenMission, onNewMission }) {
