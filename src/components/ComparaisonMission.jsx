@@ -14,8 +14,9 @@ const DOMAINE_LABELS = {
   projet: 'Gestion de projet',
   financier: 'Gestion financière',
   organisationnel: 'Gestion organisationnelle',
+  strategique: 'Gestion stratégique',
 }
-const COULEURS = { projet: '#1B2A4A', financier: '#B08D3E', organisationnel: '#2E7D32' }
+const COULEURS = { projet: '#1B2A4A', financier: '#B08D3E', organisationnel: '#2E7D32', strategique: '#7A3E9D' }
 
 export default function ComparaisonMission({ mission }) {
   const [historique, setHistorique] = useState([]) // [{date, domaine, moyenne}]
