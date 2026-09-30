@@ -20,6 +20,7 @@ const DOMAINE_LABELS = {
   projet: 'Gestion de projet',
   financier: 'Gestion financière',
   organisationnel: 'Gestion organisationnelle',
+  strategique: 'Gestion stratégique',
 }
 
 const NIVEAUX = [
