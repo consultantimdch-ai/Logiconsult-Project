@@ -13,6 +13,7 @@ const DOMAINES = [
   { value: 'projet', label: 'Gestion de projet' },
   { value: 'financier', label: 'Gestion financière' },
   { value: 'organisationnel', label: 'Gestion organisationnelle' },
+  { value: 'strategique', label: 'Gestion stratégique' },
 ]
 
 export default function NewMission({ onCancel, onCreated }) {
