@@ -1,238 +1,91 @@
-// src/components/Recommandations.jsx
+// src/lib/recommandationsTemplates.js
 //
-// Suivi des recommandations : génération automatique à partir des critères notés ≤2,
-// priorisation (gravité × facilité), responsable, échéance, ajout manuel, suivi de statut.
-// À coller dans src/components/.
+// Formulation professionnelle des recommandations, une par critère (1 à 55),
+// sous forme de phrase à l'impératif expliquant le "pourquoi" / bénéfice attendu.
+// Indexé par le champ "numero" de la table criteres_audit.
 
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
-import { RECOMMANDATIONS_PAR_NUMERO, recommandationParDefaut } from '../lib/recommandationsTemplates'
+export const RECOMMANDATIONS_PAR_NUMERO = {
+  // ---- Domaine 1 : Gestion de projet ----
+  1: "Formaliser une charte de projet précisant l'objet, les objectifs et le périmètre, pour donner un cadre de référence partagé dès le lancement.",
+  2: "Définir des objectifs SMART et les valider avec les parties prenantes, afin d'aligner les attentes et de faciliter le suivi des résultats.",
+  3: "Élaborer un planning détaillé avec jalons et livrables clairement identifiés, pour sécuriser le respect des délais.",
+  4: "Élaborer et faire valider un budget prévisionnel chiffré, afin d'anticiper les besoins financiers et d'éviter les dérapages.",
+  5: "Réaliser et documenter une analyse des risques dès le cadrage, pour anticiper les obstacles et préparer des mesures de mitigation.",
+  6: "Définir des indicateurs de performance (KPI) et en assurer le suivi régulier, pour objectiver l'avancement du projet.",
+  7: "Instaurer des comités de pilotage réguliers avec comptes rendus systématiques, afin de garantir une prise de décision éclairée et documentée.",
+  8: "Mettre à jour et partager régulièrement un tableau de bord de suivi, pour donner à l'équipe et aux parties prenantes une visibilité continue sur l'avancement.",
+  9: "Actualiser en continu le registre des risques, afin de réagir rapidement à l'évolution du contexte du projet.",
+  10: "Formaliser une cartographie des parties prenantes et un plan de communication associé, pour sécuriser leur adhésion et anticiper les résistances.",
+  11: "Ajuster l'allocation des ressources humaines et matérielles aux besoins réels du projet, pour éviter les goulots d'étranglement dans l'exécution.",
+  12: "Clarifier les rôles et responsabilités au moyen d'une matrice RACI (ou équivalent), afin d'éviter les zones de flou et les doublons d'action.",
+  13: "Structurer la communication d'équipe par des réunions régulières et des comptes rendus systématiques, pour fluidifier la coordination.",
+  14: "Tracer et justifier systématiquement les modifications et avenants au projet, afin de garantir la transparence et la maîtrise des changements.",
+  15: "Réaliser un bilan de fin de projet analysant l'atteinte des objectifs et les écarts constatés, pour capitaliser sur l'expérience acquise.",
+  16: "Documenter et partager un retour d'expérience (leçons apprises), afin d'améliorer la conduite des projets futurs.",
+  17: "Structurer l'archivage des documents du projet, pour en garantir la traçabilité et faciliter les audits ultérieurs.",
+  18: "Formaliser le transfert et la passation en fin de mission, afin d'assurer la continuité des activités après le départ de l'équipe projet.",
 
-const NAVY = '#1B2A4A'
-const GOLD = '#B08D3E'
+  // ---- Domaine 2 : Gestion financière ----
+  19: "Assurer une tenue régulière de la comptabilité conforme au référentiel SYSCOHADA, pour garantir la fiabilité et la conformité légale des comptes.",
+  20: "Respecter systématiquement les obligations fiscales et les délais de déclaration auprès de la DGID, afin d'éviter redressements et pénalités.",
+  21: "Organiser un archivage exhaustif et conforme des pièces justificatives, pour sécuriser l'organisation en cas de contrôle ou d'audit.",
+  22: "Séparer effectivement les fonctions comptabilité et trésorerie, afin de réduire les risques d'erreur et de fraude.",
+  23: "Soumettre les comptes à un audit ou une certification externe, pour renforcer la crédibilité financière de l'organisation auprès de ses partenaires.",
+  24: "Formaliser l'élaboration budgétaire annuelle et la faire valider par les instances, afin d'ancrer la gestion financière dans une gouvernance claire.",
+  25: "Mettre en place un suivi budgétaire périodique comparant réalisé et prévisionnel, pour détecter rapidement les écarts et ajuster les décisions.",
+  26: "Actualiser régulièrement un plan de trésorerie prévisionnel, afin d'anticiper les tensions de trésorerie et sécuriser les paiements.",
+  27: "Définir et faire respecter des procédures de décaissement claires, pour prévenir les dépenses non autorisées.",
+  28: "Anticiper la gestion des excédents et déficits de trésorerie, afin d'optimiser l'utilisation des ressources financières disponibles.",
+  29: "Séparer les tâches d'engagement, de paiement et de contrôle, pour renforcer le contrôle interne et limiter les risques de fraude.",
+  30: "Définir clairement les niveaux d'autorisation des dépenses selon leur montant, afin d'encadrer les engagements financiers.",
+  31: "Réaliser des rapprochements bancaires réguliers, pour détecter rapidement toute anomalie sur les comptes.",
+  32: "Tenir à jour un inventaire physique des immobilisations, afin de sécuriser le patrimoine de l'organisation et fiabiliser les états financiers.",
+  33: "Mettre en place des procédures de prévention de la fraude et des conflits d'intérêt, pour protéger l'intégrité financière de l'organisation.",
+  34: "Produire les états financiers dans les délais réglementaires, afin d'éviter tout manquement vis-à-vis des autorités et partenaires.",
+  35: "Mettre à disposition de la direction des tableaux de bord financiers réguliers, pour éclairer la prise de décision stratégique.",
+  36: "Réaliser une analyse périodique des ratios financiers (liquidité, solvabilité, rentabilité), afin d'évaluer objectivement la santé financière de l'organisation.",
+  37: "Structurer la communication financière vers les bailleurs et actionnaires, pour renforcer la confiance et faciliter les futurs financements.",
 
-const STATUTS = [
-  { value: 'non_entamee', label: 'Non entamée', color: '#C0392B' },
-  { value: 'en_cours', label: 'En cours', color: '#B08D3E' },
-  { value: 'realisee', label: 'Réalisée', color: '#2E7D32' },
-]
+  // ---- Domaine 3 : Gestion organisationnelle ----
+  38: "Formaliser, diffuser et actualiser l'organigramme, afin de clarifier la structure hiérarchique et les lignes de responsabilité.",
+  39: "Mettre à jour les statuts et textes fondateurs et veiller à leur application effective, pour asseoir la légitimité et la conformité de l'organisation.",
+  40: "Rendre pleinement fonctionnelles les instances de gouvernance (CA, AG), afin de garantir un pilotage stratégique régulier et légitime.",
+  41: "Clarifier sans ambiguïté les rôles de direction, pour éviter les conflits de compétence et fluidifier la prise de décision.",
+  42: "Formaliser un système de délégation de pouvoir, afin de sécuriser juridiquement les décisions prises par les responsables délégués.",
+  43: "Formaliser et appliquer une politique de recrutement, pour garantir l'équité et la qualité des recrutements.",
+  44: "Élaborer et diffuser des fiches de poste à jour pour chaque fonction, afin que chaque employé connaisse précisément son rôle et ses responsabilités.",
+  45: "Mettre en œuvre un système d'évaluation de la performance, pour objectiver la reconnaissance du travail et orienter le développement des compétences.",
+  46: "Élaborer un plan de formation et de renforcement des capacités, afin de développer durablement les compétences internes.",
+  47: "Mettre en place une politique de motivation et de rétention du personnel, pour réduire le turnover et préserver les compétences clés.",
+  48: "Élaborer et diffuser un manuel de procédures administratives, afin d'harmoniser les pratiques et de sécuriser la continuité en cas de départ.",
+  49: "Digitaliser les procédures clés et déployer des systèmes d'information adaptés, pour gagner en efficacité et en fiabilité.",
+  50: "Structurer un système de gestion documentaire (archivage, GED), afin de sécuriser l'accès à l'information et sa conservation dans le temps.",
+  51: "Engager une démarche qualité ou d'amélioration continue, pour ancrer une culture de progrès permanent dans l'organisation.",
+  52: "Structurer la communication interne par des réunions régulières et des notes de service, afin de renforcer la cohésion et la circulation de l'information.",
+  53: "Organiser et accompagner la gestion du changement, pour limiter les résistances et sécuriser l'adhésion du personnel aux réformes.",
+  54: "Évaluer périodiquement le style de leadership et la cohésion d'équipe, afin d'identifier les leviers d'amélioration du climat de travail.",
+  55: "Mettre en place des mécanismes formels de gestion des conflits internes, pour prévenir leur escalade et préserver un climat de travail sain.",
 
-const FACILITES = [
-  { value: '', label: 'Facilité ?' },
-  { value: 1, label: '1 · Difficile / long' },
-  { value: 2, label: '2 · Plutôt difficile' },
-  { value: 3, label: '3 · Plutôt facile' },
-  { value: 4, label: '4 · Facile / rapide' },
-]
+  // ---- Domaine 4 : Gestion stratégique ----
+  56: "Formaliser et diffuser la vision et la mission de l'organisation, afin de donner un cap clair et partagé à l'ensemble des parties prenantes.",
+  57: "Définir des objectifs stratégiques à moyen terme (3-5 ans) et les faire valider par la gouvernance, pour ancrer l'action de l'organisation dans une trajectoire de long terme.",
+  58: "Formaliser les valeurs de l'organisation et les diffuser auprès du personnel, afin de renforcer la cohésion et l'identité institutionnelle.",
+  59: "Veiller à la cohérence entre la vision affichée et les décisions effectivement prises, pour préserver la crédibilité de la direction et la confiance des parties prenantes.",
+  60: "Réaliser un diagnostic stratégique (SWOT ou équivalent) et l'actualiser périodiquement, afin d'ajuster la stratégie à l'évolution réelle du contexte.",
+  61: "Organiser une veille sectorielle et concurrentielle structurée, pour anticiper les évolutions du secteur et saisir les opportunités à temps.",
+  62: "Clarifier le positionnement différenciant de l'organisation, afin de renforcer sa visibilité et son attractivité auprès des partenaires et bénéficiaires.",
+  63: "Réaliser une cartographie des parties prenantes stratégiques, pour orienter les priorités de partenariat et de plaidoyer.",
+  64: "Aligner le plan d'action annuel sur les orientations stratégiques, afin de garantir la cohérence entre les activités quotidiennes et la vision de long terme.",
+  65: "Décliner les objectifs stratégiques par service ou direction, pour que chaque entité sache comment elle contribue à la stratégie globale.",
+  66: "Allouer les ressources humaines et financières selon les priorités stratégiques, afin d'éviter la dispersion des moyens sur des actions secondaires.",
+  67: "Communiquer la stratégie en interne et s'assurer qu'elle est comprise par l'ensemble du personnel, pour favoriser l'adhésion et la mobilisation collective.",
+  68: "Mettre en place un tableau de bord stratégique suivi régulièrement, afin de mesurer objectivement la progression vers les objectifs de long terme.",
+  69: "Organiser des revues stratégiques périodiques avec la gouvernance (comité de direction, CA), pour garantir un pilotage stratégique régulier et non improvisé.",
+  70: "Mettre en place un mécanisme d'ajustement de la stratégie en fonction des résultats obtenus, afin de rester réactif face aux écarts constatés.",
+  71: "Capitaliser sur les apprentissages stratégiques à travers des bilans et revues formalisés, pour améliorer la qualité des décisions stratégiques futures.",
+}
 
-export default function Recommandations({ missionId }) {
-  const [recos, setRecos] = useState([])
-  const [criteres, setCriteres] = useState([])
-  const [scores, setScores] = useState([])
-  const [nouveauTexte, setNouveauTexte] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState('')
-
-  useEffect(() => {
-    loadAll()
-  }, [missionId])
-
-  async function loadAll() {
-    setLoading(true)
-    const [{ data: recosData }, { data: scoresData }, { data: criteresData }] = await Promise.all([
-      supabase.from('recommandations').select('*, criteres_audit(libelle)').eq('mission_id', missionId).order('date_maj', { ascending: false }),
-      supabase.from('audit_scores').select('critere_id, score').eq('mission_id', missionId),
-      supabase.from('criteres_audit').select('id, libelle'),
-    ])
-    setRecos(recosData || [])
-    setScores(scoresData || [])
-    setCriteres(criteresData || [])
-    setLoading(false)
-  }
-
-  function graviteDe(r) {
-    if (!r.critere_id) return null
-    const s = scores.find((sc) => sc.critere_id === r.critere_id)
-    if (!s || s.score === null || s.score === undefined) return null
-    return 5 - Number(s.score) // score 1 -> gravité 4 ; score 2 -> gravité 3
-  }
-
-  function prioriteDe(r) {
-    const g = graviteDe(r)
-    if (g === null || !r.facilite) return null
-    return g * r.facilite
-  }
-
-  async function genererDepuisPointsCritiques() {
-    setBusy(true)
-    setMsg('')
-    const critereMap = Object.fromEntries(criteres.map((c) => [c.id, c]))
-    const dejaCouverts = new Set(recos.filter((r) => r.critere_id).map((r) => r.critere_id))
-    const pointsCritiques = scores.filter((s) => s.score <= 2 && !dejaCouverts.has(s.critere_id))
-
-    if (pointsCritiques.length === 0) {
-      setMsg('Aucun nouveau point critique à traiter (soit tout est déjà couvert, soit aucun critère ≤2).')
-      setBusy(false)
-      return
-    }
-
-    const nouvelles = pointsCritiques.map((s) => {
-      const critere = critereMap[s.critere_id]
-      const texte = critere
-        ? (RECOMMANDATIONS_PAR_NUMERO[critere.numero] || recommandationParDefaut(critere.libelle))
-        : 'Point à traiter.'
-      return {
-        mission_id: missionId,
-        critere_id: s.critere_id,
-        texte,
-        statut: 'non_entamee',
-      }
-    })
-
-    const { error } = await supabase.from('recommandations').insert(nouvelles)
-    setBusy(false)
-    if (error) {
-      setMsg('Erreur : ' + error.message)
-    } else {
-      setMsg(`${nouvelles.length} recommandation(s) générée(s). Renseigne la "facilité" de chacune pour calculer leur priorité.`)
-      loadAll()
-    }
-  }
-
-  async function ajouterManuelle() {
-    if (!nouveauTexte.trim()) return
-    setBusy(true)
-    const { error } = await supabase.from('recommandations').insert({
-      mission_id: missionId,
-      texte: nouveauTexte.trim(),
-      statut: 'non_entamee',
-    })
-    setBusy(false)
-    if (!error) {
-      setNouveauTexte('')
-      loadAll()
-    }
-  }
-
-  async function majChamp(id, champ, valeur) {
-    await supabase.from('recommandations').update({ [champ]: valeur, date_maj: new Date().toISOString().slice(0, 10) }).eq('id', id)
-    setRecos((prev) => prev.map((r) => (r.id === id ? { ...r, [champ]: valeur } : r)))
-  }
-
-  async function supprimer(id) {
-    await supabase.from('recommandations').delete().eq('id', id)
-    setRecos((prev) => prev.filter((r) => r.id !== id))
-  }
-
-  if (loading) return <p style={{ fontSize: 13, color: '#666' }}>Chargement…</p>
-
-  const compte = {
-    non_entamee: recos.filter((r) => r.statut === 'non_entamee').length,
-    en_cours: recos.filter((r) => r.statut === 'en_cours').length,
-    realisee: recos.filter((r) => r.statut === 'realisee').length,
-  }
-
-  // Tri par priorité décroissante (celles sans priorité calculable restent en bas)
-  const recosTriees = [...recos].sort((a, b) => {
-    const pa = prioriteDe(a)
-    const pb = prioriteDe(b)
-    if (pa === null && pb === null) return 0
-    if (pa === null) return 1
-    if (pb === null) return -1
-    return pb - pa
-  })
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        {STATUTS.map((s) => (
-          <div key={s.value} style={{ fontSize: 12 }}>
-            <span style={{ color: s.color, fontWeight: 'bold' }}>{compte[s.value]}</span> {s.label}
-          </div>
-        ))}
-      </div>
-
-      <p style={{ fontSize: 12, color: '#666', marginBottom: 10 }}>
-        Priorité = gravité (issue du score d'audit) × facilité de mise en œuvre (à renseigner). Les recommandations
-        les plus prioritaires (fort impact, facile à mettre en œuvre) remontent automatiquement en haut de liste.
-      </p>
-
-      <button
-        onClick={genererDepuisPointsCritiques}
-        disabled={busy}
-        style={{ backgroundColor: NAVY, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontSize: 13, marginBottom: 16 }}
-      >
-        Générer les recommandations à partir des points critiques (≤2/5)
-      </button>
-      {msg && <p style={{ fontSize: 12, color: '#666' }}>{msg}</p>}
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        <input
-          placeholder="Ajouter une recommandation manuelle…"
-          value={nouveauTexte}
-          onChange={(e) => setNouveauTexte(e.target.value)}
-          style={{ flex: 1, padding: 8, fontSize: 13, border: '1px solid #ccc', borderRadius: 6 }}
-        />
-        <button
-          onClick={ajouterManuelle}
-          disabled={busy}
-          style={{ background: 'none', border: `1px solid ${GOLD}`, color: GOLD, borderRadius: 6, padding: '8px 16px', fontSize: 13, cursor: 'pointer' }}
-        >
-          Ajouter
-        </button>
-      </div>
-
-      {recosTriees.length === 0 && <p style={{ fontSize: 13, color: '#666' }}>Aucune recommandation pour le moment.</p>}
-
-      {recosTriees.map((r) => {
-        const priorite = prioriteDe(r)
-        return (
-          <div key={r.id} style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {priorite !== null && (
-                <span style={{
-                  minWidth: 28, textAlign: 'center', fontWeight: 'bold', fontSize: 12,
-                  color: '#fff', backgroundColor: priorite >= 9 ? '#C0392B' : priorite >= 4 ? GOLD : '#999',
-                  borderRadius: 4, padding: '2px 6px',
-                }}>
-                  {priorite}
-                </span>
-              )}
-              <div style={{ flex: 1, fontSize: 13 }}>{r.texte}</div>
-              <select
-                value={r.statut}
-                onChange={(e) => majChamp(r.id, 'statut', e.target.value)}
-                style={{ padding: 6, fontSize: 12, borderRadius: 6, border: '1px solid #ccc' }}
-              >
-                {STATUTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-              <button onClick={() => supprimer(r.id)} style={{ color: '#C0392B', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8, marginLeft: priorite !== null ? 38 : 0 }}>
-              <select
-                value={r.facilite || ''}
-                onChange={(e) => majChamp(r.id, 'facilite', e.target.value ? Number(e.target.value) : null)}
-                style={{ padding: 5, fontSize: 11, borderRadius: 6, border: '1px solid #ccc' }}
-              >
-                {FACILITES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-              </select>
-              <input
-                placeholder="Responsable"
-                value={r.responsable || ''}
-                onChange={(e) => majChamp(r.id, 'responsable', e.target.value)}
-                style={{ padding: 5, fontSize: 11, borderRadius: 6, border: '1px solid #ccc', width: 140 }}
-              />
-              <input
-                type="date"
-                value={r.echeance || ''}
-                onChange={(e) => majChamp(r.id, 'echeance', e.target.value)}
-                style={{ padding: 5, fontSize: 11, borderRadius: 6, border: '1px solid #ccc' }}
-              />
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
+// Filet de sécurité si un critère n'a pas (encore) de formulation dédiée
+export function recommandationParDefaut(libelle) {
+  return `Corriger le point suivant, actuellement en écart par rapport aux bonnes pratiques attendues : ${libelle}.`
 }
