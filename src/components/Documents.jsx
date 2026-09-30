@@ -18,6 +18,9 @@ import { genererManuelRH } from '../lib/genererManuelRH'
 import { genererReglementInterieur } from '../lib/genererReglementInterieur'
 import { genererFicheDePoste } from '../lib/genererFicheDePoste'
 import { genererManuelGouvernance } from '../lib/genererManuelGouvernance'
+import { genererPlanStrategique } from '../lib/genererPlanStrategique'
+import { genererMatriceSWOT } from '../lib/genererMatriceSWOT'
+import { genererTableauBordStrategique } from '../lib/genererTableauBordStrategique'
 
 const NAVY = '#1B2A4A'
 const GOLD = '#B08D3E'
@@ -179,6 +182,22 @@ export default function Documents({ mission }) {
 
   const disponibleFinancier = mission.domaines.includes('financier')
   const disponibleOrganisationnel = mission.domaines.includes('organisationnel')
+  const disponibleStrategique = mission.domaines.includes('strategique')
+
+  async function genererStrat(fn, label) {
+    setBusy(true)
+    setMsg('')
+    try {
+      const { client, fiche } = await fetchClientEtFiche('fiche_strategique')
+      await fn({ client, fiche })
+      setMsg(`${label} téléchargé(e).`)
+    } catch (err) {
+      setMsg('Erreur : ' + err.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
 
   async function genererOrga(fn, label) {
     setBusy(true)
@@ -301,6 +320,32 @@ export default function Documents({ mission }) {
               onClick={() => genererOrga(genererManuelGouvernance, 'Manuel de gouvernance')}
               busy={busy}
               format="Word"
+            />
+          </>
+        )}
+
+        {disponibleStrategique && (
+          <>
+            <DocCard
+              titre="Plan stratégique"
+              description="Vision, mission, valeurs, objectifs et axes stratégiques."
+              onClick={() => genererStrat(genererPlanStrategique, 'Plan stratégique')}
+              busy={busy}
+              format="Word"
+            />
+            <DocCard
+              titre="Matrice SWOT"
+              description="Forces, Faiblesses, Opportunités, Menaces — prête à compléter."
+              onClick={() => genererStrat(genererMatriceSWOT, 'Matrice SWOT')}
+              busy={busy}
+              format="Excel"
+            />
+            <DocCard
+              titre="Tableau de bord stratégique"
+              description="Axes stratégiques pré-remplis, objectifs et indicateurs à compléter."
+              onClick={() => genererStrat(genererTableauBordStrategique, 'Tableau de bord stratégique')}
+              busy={busy}
+              format="Excel"
             />
           </>
         )}
