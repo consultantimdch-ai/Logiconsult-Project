@@ -38,13 +38,21 @@ export default function Dashboard({ onOpenMission, onNewMission }) {
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '24px 16px', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ marginBottom: 8 }}>
-        <h1 style={{ color: NAVY, fontSize: 24, fontWeight: 'bold', margin: 0 }}>
-          {vue === 'missions' ? 'Mes missions d\u2019audit' : 'Mes projets'}
-        </h1>
-        <p style={{ color: '#666', fontSize: 13, margin: '4px 0 0' }}>
-          Imadou-Dini IMOROU — Consultant en Management Organisationnel &amp; SERA/MEAL
-        </p>
+      <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ color: NAVY, fontSize: 24, fontWeight: 'bold', margin: 0 }}>
+            {vue === 'missions' ? 'Mes missions d\u2019audit' : 'Mes projets'}
+          </h1>
+          <p style={{ color: '#666', fontSize: 13, margin: '4px 0 0' }}>
+            Imadou-Dini IMOROU — Consultant en Management Organisationnel &amp; SERA/MEAL
+          </p>
+        </div>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          style={{ background: 'none', border: '1px solid #ccc', color: '#666', borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}
+        >
+          Déconnexion
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: 4, margin: '16px 0 20px' }}>
